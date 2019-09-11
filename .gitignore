@@ -1,0 +1,29 @@
+# We don't need the checkpoints
+.ipynb_checkpoints
+\IPython
+# Forget cache stuff
+__pycache__
+
+lib/*.so
+lib/*.html
+
+#ignore IDE settings folders
+\.idea/
+\.spyproject/
+
+# ignore local settings
+SETTINGS.ini
+utilities/settings/personalSettings
+\.DS_Store
+
+# ignore cython builds
+/build/
+*.so
+*.pyd
+*.c
+
+# ignore old docs build
+# docs/build/
+
+# ignore virtual environments
+venv/

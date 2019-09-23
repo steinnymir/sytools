@@ -60,7 +60,7 @@ def color_list(nColors, cmapRange=(0,1),colormap='Blues', invert=False ):
     if invert:
         colors = [cmap(1-x) for x in cm_subsection]
     else:
-        colors = [cmap(1-x) for x in cm_subsection]
+        colors = [cmap(x) for x in cm_subsection]
     return colors
 
 def main():

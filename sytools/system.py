@@ -19,6 +19,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
+import psutil
 
 def get_system_memory_status(print_=False):
     mem_labels = ('total', 'available', 'percent', 'used', 'free')

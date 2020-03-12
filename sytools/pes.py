@@ -143,36 +143,38 @@ def plot_interactive_orthogonal_slices(data, binning=1, guidelines=True):
     tab.set_title(1, 'colormap')
 
     fig, ax = makeaxis()
-    ax0, ax1, ax2 ,cbar_ax = ax
+    ax0, ax1, ax2 = ax # TODO: add cbar
 
 
     clim_ = 0.01, .99
 
     e_img = norm_img(data[data.shape[0] // 2, :, :])
-    x_img = norm_img(data[:, data.shape[1] // 2, :])
-    y_img = norm_img(data[:, :, data.shape[2] // 2])
-    e_plot = ax0.imshow(e_img, cmap='terrain', aspect='auto', interpolation='gaussian', clim=clim_)
-    x_plot = ax1.imshow(x_img, cmap='terrain', aspect='auto', interpolation='gaussian', clim=clim_)
-    y_plot = ax2.imshow(y_img, cmap='terrain', aspect='auto', interpolation='gaussian', clim=clim_)
+    y_img = norm_img(data[:, data.shape[1] // 2, :])
+    x_img = norm_img(data[:, :, data.shape[2] // 2].T)
+    e_plot = ax0.imshow(e_img, cmap='terrain', aspect='auto', interpolation='gaussian', clim=clim_,)#origin='lower')
+    x_plot = ax2.imshow(x_img, cmap='terrain', aspect='auto', interpolation='gaussian', clim=clim_,)#origin='lower')
+    y_plot = ax1.imshow(y_img, cmap='terrain', aspect='auto', interpolation='gaussian', clim=clim_,)#origin='lower')
+
 
 
 
 
     pe_x = ax0.axvline(x_range/2 , c='orange')
     pe_y = ax0.axhline(y_range/2 , c='orange')
-    px_y = ax1.axvline(y_range/2 , c='orange')
+    px_x = ax1.axvline(x_range/2 , c='orange')
     px_e = ax1.axhline(e_range/2 , c='orange')
-    py_x = ax2.axvline(x_range/2 , c='orange')
-    py_e = ax2.axhline(e_range/2 , c='orange')
+    py_y = ax2.axhline(y_range/2 , c='orange')
+    py_e = ax2.axvline(e_range/2 , c='orange')
 
 
 
     def update(e, kx, ky, clim, cmap, binning, interpolate, grid, trackers,trackerscol):
 
-        e_img = norm_img(data[e, ...][::binning, ::binning])
-        x_img = norm_img(data[:, kx, ...][::binning, ::binning])
-        y_img = norm_img(data[..., ky][::binning, ::binning])
-        for axis, plot, img in zip(ax,[e_plot, x_plot, y_plot], [e_img, x_img, y_img.T]):
+        e_img = norm_img(data[e ,:,:][::binning, ::binning])
+        y_img = norm_img(data[:,ky,:][::binning, ::binning])
+        x_img = norm_img(data[:,:,kx][::binning, ::binning])
+        for axis, plot, img in zip(ax,[e_plot, x_plot, y_plot], [e_img, x_img.T,y_img]):
+
             plot.set_data(img)
             plot.set_clim(clim)
             plot.set_cmap(cmap)
@@ -184,20 +186,15 @@ def plot_interactive_orthogonal_slices(data, binning=1, guidelines=True):
             if trackers:
                 pe_x.set_xdata(kx)
                 pe_x.set_color(trackerscol)
-
                 pe_y.set_ydata(ky)
                 pe_y.set_color(trackerscol)
-
-                px_y.set_xdata(ky)
-                px_y.set_color(trackerscol)
-
+                px_x.set_xdata(kx)
+                px_x.set_color(trackerscol)
                 px_e.set_ydata(e)
                 px_e.set_color(trackerscol)
-
-                py_x.set_xdata(kx)
-                py_x.set_color(trackerscol)
-
-                py_e.set_ydata(e)
+                py_y.set_ydata(ky)
+                py_y.set_color(trackerscol)
+                py_e.set_xdata(e)
                 py_e.set_color(trackerscol)
 
 
@@ -216,9 +213,14 @@ def plot_interactive_orthogonal_slices(data, binning=1, guidelines=True):
                                                    'trackers':w_trackers,
                                                    'trackerscol':w_trackercol,});
     display(interactive_plot, tab)
+    # display(tab)
+
+    # return fig
+
 
 def norm_img(data,mode='max'):
-    out = data - np.amin(data)
+    out = np.nan_to_num(data)
+    out -= np.amin(out)
     if mode == 'max':
         out /= np.amax(out)
     elif mode == 'mean':
@@ -233,8 +235,8 @@ def makeaxis(**kwargs):
     # [left, bottom, width, height]
     # fig.locator_params(nbins=4)
 
-    cbar_ax = fig.add_axes([.05,.4,.05,4], xticklabels=[], yticklabels=[])
-    cbar_ax.yaxis.set_major_locator(plt.LinearLocator(5))
+    # cbar_ax = fig.add_axes([.05,.4,.05,4], xticklabels=[], yticklabels=[])
+    # cbar_ax.yaxis.set_major_locator(plt.LinearLocator(5))
 
     img_ax   = fig.add_axes([.15, .4, .4, .4], xticklabels=[], yticklabels=[])
     img_ax.xaxis.set_major_locator(plt.LinearLocator(5))
@@ -251,9 +253,9 @@ def makeaxis(**kwargs):
 
 
 
-    for ax in [img_ax, yproj_ax, xproj_ax,cbar_ax]:
+    for ax in [img_ax, yproj_ax, xproj_ax]:#,cbar_ax]:
         ax.tick_params(axis="both", direction="in", bottom=True, top=True, left=True, right=True, which='both')
-    return fig, (img_ax, xproj_ax, yproj_ax,cbar_ax)
+    return fig, (img_ax, xproj_ax, yproj_ax)#,cbar_ax)
 
 
 

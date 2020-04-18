@@ -57,6 +57,60 @@ def get_list_of_files(dirName):
 
     return allFiles
 
+_imagej_metadata = """ImageJ=1.47a
+    images={nr_images}
+    channels={nr_channels}
+    slices={nr_slices}
+    hyperstack=true
+    mode=color
+    loop=false"""
+def output_hyperstack(zs, oname):
+    '''
+    Write out a hyperstack to ``oname``
+
+    Parameters
+    ----------
+    zs : 4D ndarray
+        dimensions should be (c,z,x,y)
+    oname : str
+        filename to write to
+    '''
+
+
+    import tempfile
+    import shutil
+    from os import system
+    import tifffile
+    try:
+        # We create a directory to save the results
+        tmp_dir = tempfile.mkdtemp(prefix='hyperstack')
+
+        # Channels are in first dimension
+        nr_channels = zs.shape[0]
+        nr_slices = zs.shape[1]
+        nr_images = nr_channels*nr_slices
+        metadata = _imagej_metadata.format(
+                        nr_images=nr_images,
+                        nr_slices=nr_slices,
+                        nr_channels=nr_channels)
+
+        frames = []
+        next = 0
+        for s1 in range(zs.shape[1]):
+            for s0 in range(zs.shape[0]):
+                fname = '{}/s{:03}.tiff'.format(tmp_dir, next)
+                # Do not forget to output the metadata!
+                tifffile.imwrite(fname, zs[s0, s1], metadata=metadata)
+                frames.append(fname)
+                next += 1
+        cmd = "tiffcp {inputs} {tmp_dir}/stacked.tiff".format(inputs=" ".join(frames), tmp_dir=tmp_dir)
+        r = system(cmd)
+        if r != 0:
+            raise IOError('tiffcp call failed')
+        shutil.copy('{tmp_dir}/stacked.tiff'.format(tmp_dir=tmp_dir), oname)
+    finally:
+        shutil.rmtree(tmp_dir)
+
 
 def main():
     pass

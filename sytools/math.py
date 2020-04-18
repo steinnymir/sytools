@@ -80,6 +80,7 @@ def update_average(new, avg, n):
     return (avg * (n - 1) + new) / n
 
 
+
 def main():
     pass
 

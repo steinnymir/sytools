@@ -23,6 +23,7 @@
 import os
 from collections import OrderedDict
 from copy import deepcopy
+import tifffile
 
 import h5py
 import matplotlib.pyplot as plt
@@ -34,11 +35,9 @@ from symmetrize import pointops as po
 from xarray import DataArray
 
 from ..symm import mirror
-from ..plot import cmaps
+
+
 # from mpes import fprocessing as fp, analysis as aly, utils as u, visualization as vis
-
-
-
 
 
 def main():
@@ -61,7 +60,7 @@ class BandStructure(DataArray):
         'high_sym_points',
         'sym_points_dict',
         'axesdict',
-        'faddr',
+        'd',
     )
 
     def __init__(self, data=None, coords=None, dims=None, faddr=None, **kwds):
@@ -219,7 +218,7 @@ class BandStructure(DataArray):
         if update:
             self.data = blurred
         if ret:
-            return blurred
+            return BandStructure(data=blurred,coords=self.coords,dims=self.dims)
 
     def interpolate(self, dims, update=True, ret=False, method='spline', **kwargs):
         intp = self.copy()
@@ -237,7 +236,7 @@ class BandStructure(DataArray):
         with h5py.File(fname, 'w') as f:
             f.create_dataset('binned/binned', data=self.data)
             for k, v in self.coords.items():
-                f.create_dataset('axes/{}'.format(k), data=v)
+                f.create_dataset('binned/axes/{}'.format(k), data=v)
             for k, v in self.attrs.items():
                 f.create_dataset('attrs/{}'.format(k), data=v)
 
@@ -247,14 +246,13 @@ class BandStructure(DataArray):
         coords = {}
         with h5py.File(fname, 'r') as f:
             data = f['binned/binned'][...]
-            for name in f['axes']:
-                coords[name] = f['axes'][name][...]
+            for name in f['binned/axes']:
+                coords[name] = f['binned/axes'][name][...]
             dims = coords.keys()
             return data, coords, dims
 
     def load_h5(self, fname):
 
-        coords = {}
         if len(self.coords):
             print('instance is not empty, its not safe to load data here!')
         else:
@@ -277,6 +275,9 @@ class BandStructure(DataArray):
             nbs = xr.DataArray(data=da, coords=co, dims=di)
             bs = xr.concat([bs, nbs], dim='e')
         self.__init__(data=bs.data, coords=bs.coords, dims=bs.dims)
+
+    def export_tiff(self,file):
+        tifffile.imwrite(file,data=self.data, dtype=np.float32)
 
     # -------------- from MPES, not working -----------------------------
 

@@ -26,6 +26,7 @@ from ipywidgets import widgets, interactive_output
 from ..misc import isnotebook
 from ..plot import cmaps
 
+
 def main():
     pass
 
@@ -201,7 +202,7 @@ def orthoslices_4D(data, axis_order=['E', 'kx', 'ky', 'kz'], normalize=True, con
     w_ky = widgets.IntSlider(value=y_range // 2, min=0, max=y_range - 1, step=1, description='ky:', disabled=False,
                              continuous_update=continuous_update, orientation='horizontal', readout=True,
                              readout_format='d')
-    w_kz = widgets.IntSlider(value=z_range // 2, min=0, max=y_range - 1, step=1, description='ky:', disabled=False,
+    w_kz = widgets.IntSlider(value=z_range // 2, min=0, max=z_range - 1, step=1, description='kz:', disabled=False,
                              continuous_update=continuous_update, orientation='horizontal', readout=True,
                              readout_format='d')
 
@@ -326,92 +327,93 @@ def norm_img(data, mode='max'):
     return out
 
 
-def k_par(px, bz_width_px=219, bz_width=2.215):
-    '''k parallel from pixel size
-    dgg: distance between 2 gamma points'''
-    return px * bz_width / bz_width_px
+def det_to_k(x, x0, d):
+    ''' Detector pixel coordinate to momentum coordinate (in pixel)'''
+    kx = (x - x0)
+    while np.abs(kx) > d / 2:
+        kx -= np.sign(kx) * d
+    return kx
 
 
-def k_z(d, kf=37.285, bz_width_px=219):
-    '''k_z from pixel distance from k-center
-    d: distance in pixels
-    kf photon momentum'''
-    return kf * (1 - np.cos(np.arcsin(k_par(d, bz_width_px) / kf)))
+def reduce_to_first_bz(x, x0, reciprocal_lattice_vector):
+    kx = (x - x0)
+    while np.abs(kx) > reciprocal_lattice_vector / 2:
+        kx -= np.sign(kx) * reciprocal_lattice_vector
+    return kx
 
 
-def px_to_xyz(px, k_center, bz_width_px, bz_width, kf):
-    """ convert detector pixel to momentum coordinates
-    param:
-        px: tuple
-            detector coordinates (row,col)
-        k_center: tuple
-            momentum center on detector
-        bz_width_px: int
-            size of a brillouin zone in pixels
-        bz_width: float
-            size of a brillouin zone in inverse Angstroms
-    return:
-        K: tuple:
-            kx,ky,kz, in inverse angstroms
-    """
-    kx_px = k_center[1] - px[1]
-    ky_px = k_center[0] - px[0]
-    kz_px = point_distance(px, k_center)
-    return k_par(kx_px, bz_width_px, bz_width), k_par(ky_px, bz_width_px, bz_width), k_z(kz_px, kf, bz_width_px)
+def to_reduced_scheme(x, aoi_k):
+    """ obtain momentum coordinate in the reduced scheme.
+
+    Follow Bloch theorem."""
+    return aoi_k / 2 - (x + aoi_k / 2) % aoi_k
+
+
+def to_k_parallel(x, x0, aoi_px, aoi_k):
+    return (x - x0) * aoi_k / aoi_px
+
+
+def to_k_parallel_reduced(x, x0, w_px, w):
+    """ Transform pixel to momentum and correct to the reduced brillouin scheme"""
+    kx = (x - x0) * w / w_px
+    return kx - (kx + w / 2) // w
+
+
+def to_k_perpendicular(xy, xy0, kf=37.285, aoi_px=219, aoi_k=2.215):
+    d = point_distance(xy, xy0)
+    px_to_k = aoi_k / aoi_px
+    return kf * (1 - np.cos(np.arcsin(d * px_to_k / kf)))
+
+
+def k_par(px, bz_w_px=219, bz_w=2.215):
+    ''' Pixel to momentum converter
+    bz_w_px: Brillouin zone width in pixel
+    bz_w: Brillouin zone width in inverse Angstroms'''
+    return
+
+
+def d_to_kz(d, kf=37.285, bz_w_px=219, bz_w=2.215):
+    ''' Evaluate k_z from Ewald sphere radius
+    d: distance in pixels from the center of momentum space on the detector
+    kf: photon momentum
+    bz_w_px: Brillouin zone width in pixels
+    bz_w: Brillouin zone width in inverse Angstroms'''
+    return kf * (1 - np.cos(np.arcsin(k_par(d, bz_w_px, bz_w) / kf)))
 
 
 def point_distance(pt1, pt2):
-    return np.sqrt((pt2[0] - pt1[0]) ** 2 + (pt2[1] - pt1[1]) ** 2)
+    return np.sqrt(np.power(pt2[0] - pt1[0], 2) + np.power(pt2[1] - pt1[1], 2))
 
 
-def get_k_xyz_idx(pt, k_center=(179, 737), bz_width_px=218, kf=37.285):
+def get_k_xyz(pt, k_center=(179, 737), reciprocal_lattice_vector=(218, 218), reciprocal_unit_cell=(2.215, 2.215, 1),
+              kf=37.285):
     """ return the kx,ky,kz coordinates of a point.
     param:
         pt: tuple(float,float)
-            point to evaluate
+            point to evaluate (row,col)
         k_center:
             center of momentum space
-        dgg: float
+        reciprocal_lattice_vector: float
             distance between 2 gamma points - BZ width
         kf: float
             final momentum from energy of photoemission photon
 
     given distance from gamma point and size of the brillouin zone"""
-    x_c, y_c = k_center
-    #     x = k_par((pt[0]-x_c)%dgg - dgg/2 ,dgg)
-    #     y = k_par((pt[1]-y_c)%dgg- dgg/2,dgg)
-    x = (pt[0] - x_c) % bz_width_px
-    if x > bz_width_px / 2: x -= bz_width_px
-    y = (pt[1] - y_c) % bz_width_px
-    if y > bz_width_px / 2: y -= bz_width_px
+    y_c, x_c = k_center
+    y_w, x_w = reciprocal_lattice_vector
+    y, x = pt
 
-    z = get_kz(pt, k_center, kf, bz_width_px)
-    return (k_par(x), k_par(y), z)
+    kx = k_par(det_to_k(x, x_c, reciprocal_lattice_vector[1]), bz_w_px=reciprocal_lattice_vector[1],
+               bz_w=reciprocal_unit_cell[1])
+    ky = k_par(det_to_k(y, y_c, reciprocal_lattice_vector[0]), bz_w_px=reciprocal_lattice_vector[0],
+               bz_w=reciprocal_unit_cell[0])
+    d = point_distance(pt, k_center)
+    kz = d_to_kz(d, kf=kf, bz_w_px=np.mean(reciprocal_lattice_vector))
+    return kx, ky, kz
 
 
-def get_k_xyz(pt, k_center=(179, 737), dgg=218, kf=37.285):
-    """ return the kx,ky,kz coordinates of a point.
-    param:
-        pt: tuple(float,float)
-            point to evaluate
-        k_center:
-            center of momentum space
-        dgg: float
-            distance between 2 gamma points - BZ width
-        kf: float
-            final momentum from energy of photoemission photon
-
-    given distance from gamma point and size of the brillouin zone"""
-    x_c, y_c = k_center
-    #     x = k_par((pt[0]-x_c)%dgg - dgg/2 ,dgg)
-    #     y = k_par((pt[1]-y_c)%dgg- dgg/2,dgg)
-    x = (pt[0] - x_c) % dgg
-    if x > dgg / 2: x -= dgg
-    y = (pt[1] - y_c) % dgg
-    if y > dgg / 2: y -= dgg
-
-    z = get_kz(pt, k_center, kf, dgg)
-    return (k_par(x), k_par(y), z)
+def slice_to_ev(ToF, ToF_to_ev, t0):
+    return (ToF - t0) * ToF_to_ev
 
 
 if __name__ == '__main__':

@@ -79,8 +79,72 @@ def update_average(new, avg, n):
     'recalculate average with new dataset.'
     return (avg * (n - 1) + new) / n
 
+tiny = np.finfo(np.float64).eps
 
 
+def gaussian2dcorr(x, y=0.0, offset=0.0, corr= 0.0, amplitude=1.0, centerx=0.0, centery=0.0, sigmax=1.0,
+               sigmay=1.0):
+    """Return a 2-dimensional Gaussian with correlations as implemented in Igor Gauss2D
+    """
+    return offset+amplitude*np.exp((-1.0/max(tiny,2*(1-corr)))*(((x-centerx)/max(tiny,sigmax))**2+((y-centery)/max(tiny,sigmay))**2-((2*corr*(x-centerx)*(y-centery))/max(tiny,sigmax*sigmay))))
+
+def gaussian2drot(x, y=0.0, offset=0.0, angle= 0.0, amplitude=1.0, centerx=0.0, centery=0.0, sigmax=1.0,
+               sigmay=1.0):
+    """Return a 2-dimensional Gaussian with rotation angle
+    """
+    xp = (x - centerx)*np.cos(angle) - (y - centery)*np.sin(angle)
+    yp = (x - centerx)*np.sin(angle) + (y - centery)*np.cos(angle)
+    return offset+amplitude*np.exp((-1.0/max(tiny,2*(1)))*(((xp)/max(tiny,sigmax))**2+((yp)/max(tiny,sigmay))**2))
+
+def lorentzian(x,A,x0,gamma):
+    """ Lorentzian distribution """
+    return A/(np.pi * gamma) * np.power(gamma,2) / (np.power(gamma,2) + np.power(x-x0,2))
+
+def lorentzian_distribution2D(x,y,A,x0,y0,gamma):
+    """ Lorentzian distribution, symmetric in x,y """
+    return A/(np.pi * gamma) * np.power(gamma,2) / (np.power(gamma,2) + np.power(x-x0,2) +  np.power(y-y0,2))
+
+def lorentzian_asymm2D(x,y,A,x0,y0,gx,gy):
+    """ Lorentzian distribution, asymmetric in x,y """
+    xp = (x - centerx)*np.cos(angle) - (y - centery)*np.sin(angle)
+    yp = (x - centerx)*np.sin(angle) + (y - centery)*np.cos(angle)
+    return A * lorentzian_distribution2D(xp,1,0,gx) * lorentzian_distribution2D(yp,1,0,gy)
+
+
+
+def gaussian2D(x,y, amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
+#     x, y = M
+    xo = float(xo)                                                              
+    yo = float(yo)                                                              
+    a = (np.cos(theta)**2)/(2*sigma_x**2) + (np.sin(theta)**2)/(2*sigma_y**2)   
+    b = -(np.sin(2*theta))/(4*sigma_x**2) + (np.sin(2*theta))/(4*sigma_y**2)    
+    c = (np.sin(theta)**2)/(2*sigma_x**2) + (np.cos(theta)**2)/(2*sigma_y**2)   
+    return offset + amplitude*np.exp( - (a*((x-xo)**2) + 2*b*(x-xo)*(y-yo)         
+                        + c*((y-yo)**2)))
+
+def lorentzian2D(x,y, amp, mux, muy, g, c):
+    numerator = np.abs(amp * g)
+    denominator = ((x - mux) ** 2 + (y - muy) ** 2 + g ** 2) ** 1.5
+    return numerator / denominator + c
+
+def multi_lorentzian2D(M,*args):
+    x,y = M
+    arr = np.zeros(x.shape)
+    n=7
+    for i in range(len(args)//n):
+        arr += lorentzian2D(M, *args[i*n:i*n+n])
+    return arr
+
+def multi_gaussian2D(M, *args):
+    x,y = M
+    arr = None
+    n=7
+    for i in range(len(args)//n):
+        if arr is None:
+            arr = gaussian2D(x,y, *args[i*n:i*n+n])
+        else:
+            arr += gaussian2D(x,y, *args[i*n:i*n+n])
+    return arr
 def main():
     pass
 

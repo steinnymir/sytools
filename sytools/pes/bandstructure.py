@@ -20,7 +20,7 @@
 
 """
 
-import os
+import sys,os
 from collections import OrderedDict
 from copy import deepcopy
 import tifffile
@@ -35,7 +35,7 @@ from symmetrize import pointops as po
 from xarray import DataArray
 
 from ..symm import mirror
-
+from ..misc import repr_byte_size
 
 # from mpes import fprocessing as fp, analysis as aly, utils as u, visualization as vis
 
@@ -527,6 +527,27 @@ class BandStructure(DataArray):
             dray = DataArray(subdata, coords=tempdict, dims=tempdict.keys())
 
             return dray
+
+def computeBinning(datafolder,axes,bins,ranges,jitter_amplitude,ncores=1):
+
+    sys.path.append('D:/code/')
+    import mpes.mpes.fprocessing as fp
+    print(f'Binning data from {datafolder}')
+    print('binning parameters:')
+    bsize = repr_byte_size(64*np.prod([np.float64(x) for x in bins]))
+    print(f'axes: {axes}\nshape: {bins}\nbyte size: {bsize}')
+
+    dfp = fp.dataframeProcessor(datafolder=datafolder, ncores=ncores)
+    dfp.read(source='folder', ftype='parquet')
+    coords = {}
+    for a, b, r in zip(axes, bins, ranges):
+        coords[a] = np.linspace(r[0], r[1], b)
+    dfp.distributedBinning(axes=axes, nbins=bins, ranges=ranges,
+                           scheduler='threads', ret=False, jittered=True,
+                           jitter_amplitude=jitter_amplitude, pbenv='notebook',
+                           weight_axis='processed', binmethod='original')
+
+    return BandStructure(dfp.histdict['binned'], coords=coords, dims=axes)
 
 
 def find_nearest(array, value):

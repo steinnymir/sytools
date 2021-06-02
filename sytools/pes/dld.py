@@ -447,8 +447,9 @@ class DldProcessor(object):
                                                   aoi_k=np.mean(self.aoi_k) - self.reciprocal_unit_cell[2] / 2),
                                self.reciprocal_unit_cell[2])
         e = slice_to_ev(self.processed.ToF, ToF_to_ev=self.tof_to_ev, t0=self.tof_0)
-        self.processed = self.processed.assign_coords({'kx': kx, 'ky': ky, 'kz': kz, 'e': e})
-        self.mask = self.mask.assign_coords({'kx': kx, 'ky': ky, 'kz': kz, 'e': e})
+        coords = {'kx': kx, 'ky': ky, 'kz': kz, 'e': e}
+        self.processed = self.processed.assign_coords(coords)
+        self.mask = self.mask.assign_coords(coords)
 
         hist_str = f'k_center:{self.k_center}, ' + \
                    f'aoi_px:{self.aoi_px}, ' + \

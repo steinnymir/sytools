@@ -64,6 +64,16 @@ _imagej_metadata = """ImageJ=1.47a
     hyperstack=true
     mode=color
     loop=false"""
+# _imagej_metadata = {'ImageJ':'1.47a',
+#                     'images':f'{nr_images}',
+#                     'channels':f'{nr_channels}',
+#                     'slices':f'{nr_slices}',
+#                     'hyperstack':True,
+#                     'mode':'color',
+#                     'loop':False,
+#                     }
+
+
 def output_hyperstack(zs, oname):
     '''
     Write out a hyperstack to ``oname``
@@ -89,11 +99,18 @@ def output_hyperstack(zs, oname):
         nr_channels = zs.shape[0]
         nr_slices = zs.shape[1]
         nr_images = nr_channels*nr_slices
-        metadata = _imagej_metadata.format(
-                        nr_images=nr_images,
-                        nr_slices=nr_slices,
-                        nr_channels=nr_channels)
-
+        # metadata = _imagej_metadata.format(
+        #                 nr_images=nr_images,
+        #                 nr_slices=nr_slices,
+        #                 nr_channels=nr_channels)
+        metadata = {'ImageJ': '1.47a',
+           'images': f'{nr_images}',
+           'channels': f'{nr_channels}',
+           'slices': f'{nr_slices}',
+           'hyperstack': True,
+           'mode': 'color',
+           'loop': False,
+           }
         frames = []
         next = 0
         for s1 in range(zs.shape[1]):

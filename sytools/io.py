@@ -22,6 +22,7 @@
 import os
 from zipfile import ZipFile
 import tifffile
+import xarray as xr
 
 def read_zipped_tiff(key,folder):
     data = None
@@ -127,6 +128,69 @@ def output_hyperstack(zs, oname):
         shutil.copy('{tmp_dir}/stacked.tiff'.format(tmp_dir=tmp_dir), oname)
     finally:
         shutil.rmtree(tmp_dir)
+
+def xarray_to_tiff(data, filename, axis_dict=None):
+    """ Save data to tiff file.
+
+    Args:
+        data: xarray.DataArray
+            data to be saved. ImageJ likes tiff files with
+            axis order as TZCYXS. Therefore, best axis order in input should be:
+            Time, Energy, posY, posX. The channels 'C' and 'S' are automatically
+            added and can be ignored.
+        filename: str
+            full path and name of file to save.
+        axis_dict: dict
+            name pairs for correct axis ordering. Keys should be
+            any of T,Z,C,Y,X,S. The Corresponding value will be searched among
+            the dimensions of the xarray, and placed in the right order for
+            imagej stacks metadata.
+        units: bool
+            Not implemented. Will be used to set units in the tif stack
+            TODO: expand imagej metadata to include physical units
+    """
+
+    assert isinstance(data, xr.DataArray), 'Data must be an xarray.DataArray'
+    dims_to_add = {'C': 1, 'S': 1}
+    dims_order = []
+
+    if axis_dict is None:
+        axis_dict = {'T': ['delayStage','pumpProbeTime','time'],
+                     'Z': ['dldTime','energy'],
+                     'C': ['C'],
+                     'Y': ['dldPosY','ky'],
+                     'X': ['dldPosX','kx'],
+                     'S': ['S']}
+    else:
+        for key in ['T', 'Z', 'C', 'Y', 'X', 'S']:
+            if key not in axis_dict.keys():
+                axis_dict[key] = key
+
+    # Sort the dimensions in the correct order, and fill with one-point dimensions
+    # the missing axes.
+    for key in ['T', 'Z', 'C', 'Y', 'X', 'S']:
+        axis_name_list = [name for name in axis_dict[key] if name in data.dims]
+        if len(axis_name_list) > 1:
+            raise AttributeError(f'Too many dimensions for {key} axis.')
+        elif len(axis_name_list) == 1:
+            dims_order.append(*axis_name_list)
+        else:
+            dims_to_add[key] = 1
+            dims_order.append(key)
+
+    print(f'tif stack dimension order: {dims_order}')
+    xres = data.expand_dims(dims_to_add)
+    xres = xres.transpose(*dims_order)
+    if '.tif' not in filename:
+        filename += '.tif'
+    try:
+        tifffile.imwrite(filename, xres.values.astype(np.float32), imagej=True)
+    except:
+        tifffile.imsave(filename, xres.values.astype(np.float32), imagej=True)
+
+    # resolution=(1./2.6755, 1./2.6755),metadata={'spacing': 3.947368, 'unit': 'um'})
+    print(f'Successfully saved {filename}')
+
 
 
 def main():

@@ -31,7 +31,7 @@ import numpy as np
 import xarray as xr
 from scipy.ndimage import rotate as sprotate, gaussian_filter
 from skimage.transform import rotate as skrotate
-from symmetrize import pointops as po
+# from symmetrize import pointops as po
 from xarray import DataArray
 
 from ..symm import mirror
